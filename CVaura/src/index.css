@@ -1,0 +1,139 @@
+:root {
+  --bg: #07111b;
+  --surface: rgba(9, 18, 29, 0.92);
+  --surface-glass: rgba(13, 22, 35, 0.74);
+  --border-soft: rgba(148, 163, 184, 0.16);
+  --border-strong: rgba(148, 163, 184, 0.26);
+  --text-main: #dce7f5;
+  --text-strong: #f6fbff;
+  --text-muted: #8ca0ba;
+  --accent: #4ee3c4;
+  --accent-strong: #ffa94d;
+  --accent-soft: #8af4df;
+  --shadow-soft: 0 24px 80px rgba(0, 0, 0, 0.28);
+  --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.16);
+  --heading-font: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --body-font: 'Outfit', 'Segoe UI', sans-serif;
+  color: var(--text-main);
+  background:
+    radial-gradient(circle at top, rgba(78, 227, 196, 0.08), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(255, 169, 77, 0.08), transparent 28%),
+    var(--bg);
+  font-family: var(--body-font);
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='light'] {
+  --bg: #eef3f9;
+  --surface: rgba(255, 255, 255, 0.9);
+  --surface-glass: rgba(255, 255, 255, 0.82);
+  --border-soft: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.12);
+  --text-main: #29415a;
+  --text-strong: #0d1b2a;
+  --text-muted: #5d748c;
+  --accent: #0db0c0;
+  --accent-strong: #f28d35;
+  --accent-soft: #0e7784;
+  --shadow-soft: 0 22px 64px rgba(27, 46, 75, 0.08);
+  --shadow-card: 0 12px 36px rgba(27, 46, 75, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(circle at center, black, transparent 85%);
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: none;
+}
+
+a {
+  color: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+p,
+ul {
+  margin-top: 0;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--heading-font);
+  color: var(--text-strong);
+  letter-spacing: -0.04em;
+}
+
+h1 {
+  font-size: clamp(2.8rem, 5vw, 5.5rem);
+  line-height: 0.98;
+  margin-bottom: 18px;
+}
+
+h2 {
+  font-size: clamp(2rem, 3vw, 3rem);
+  line-height: 1.05;
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+}
+
+p,
+li {
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+ul {
+  padding-left: 20px;
+}
+
+::selection {
+  background: rgba(78, 227, 196, 0.24);
+}
