@@ -1,5 +1,6 @@
 To Do's
-
+-> Need to fix the responsiveness of the website for mobile and tablet devices.
+-> Need to fix the current page content button highlight issue.
 -> Update the home page content.
 -> Update Professional summary content
 -> Try to automate the content fetcher from google sheets for Experience card
