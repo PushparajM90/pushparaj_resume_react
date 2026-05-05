@@ -512,10 +512,93 @@ function useScrollSpy(sectionIds) {
   return { activeSection, scrollProgress };
 }
 
-function EducationChart({ data }) {
+function getContrastColor(theme, tone = "main") {
+  const palette =
+    theme === "dark"
+      ? {
+          strong: "#FFFFFF",
+          main: "#EAEAEA",
+          muted: "#D7DDD7",
+          tooltipBackground: "#102331",
+        }
+      : {
+          strong: "#000000",
+          main: "#1A1A1A",
+          muted: "#333333",
+          tooltipBackground: "#F3F4F6",
+        };
+
+  return palette[tone] ?? palette.main;
+}
+
+function applyChartTextTheme({ root, theme, series, legend, chartTitle }) {
+  const strong = am5.Color.fromString(getContrastColor(theme, "strong"));
+  const main = am5.Color.fromString(getContrastColor(theme, "main"));
+  const muted = am5.Color.fromString(getContrastColor(theme, "muted"));
+  const tooltipBackground = am5.Color.fromString(
+    getContrastColor(theme, "tooltipBackground"),
+  );
+
+  root.interfaceColors.set("text", main);
+  root.interfaceColors.set("alternativeText", strong);
+  root.interfaceColors.set("grid", muted);
+
+  if (chartTitle) {
+    chartTitle.setAll({
+      fill: strong,
+    });
+  }
+
+  if (series) {
+    series.labels.template.setAll({
+      fill: strong,
+      fontSize: 12,
+    });
+
+    series.ticks.template.setAll({
+      stroke: muted,
+    });
+
+    const tooltip = series.get("tooltip");
+
+    tooltip?.label.setAll({
+      fill: strong,
+      fontSize: 13,
+    });
+
+    tooltip?.get("background")?.setAll({
+      fill: tooltipBackground,
+      fillOpacity: 0.96,
+      stroke: muted,
+      strokeOpacity: 0.35,
+    });
+  }
+
+  if (legend) {
+    legend.labels.template.setAll({
+      fill: strong,
+      fontSize: 13,
+    });
+
+    legend.valueLabels.template.setAll({
+      fill: main,
+      fontSize: 12,
+    });
+  }
+}
+
+function EducationChart({ data, theme, title }) {
   const chartRef = useRef(null);
 
   useEffect(() => {
+    const styles = getComputedStyle(document.documentElement);
+    const textMain = styles.getPropertyValue("--text-main").trim();
+    const accent = styles.getPropertyValue("--accent").trim();
+    const accentStrong = styles.getPropertyValue("--accent-strong").trim();
+    const accentSoft = styles.getPropertyValue("--accent-soft").trim();
+    const supportBrown = styles.getPropertyValue("--support-brown").trim();
+    const borderStrong = styles.getPropertyValue("--border-strong").trim();
+
     const root = am5.Root.new(chartRef.current);
     root.setThemes([am5themes_Animated.new(root)]);
     root._logo?.dispose();
@@ -527,29 +610,48 @@ function EducationChart({ data }) {
       }),
     );
 
+    const chartTitle = chart.children.unshift(
+      am5.Label.new(root, {
+        text: title,
+        centerX: am5.percent(50),
+        x: am5.percent(50),
+        fontSize: 16,
+        fontWeight: "600",
+        marginBottom: 14,
+      }),
+    );
+
     const series = chart.series.push(
       am5percent.PieSeries.new(root, {
         valueField: "value",
         categoryField: "category",
         legendLabelText: "{category}",
         legendValueText: "{value}",
+        tooltip: am5.Tooltip.new(root, {
+          labelText: "{category}: {value}",
+        }),
       }),
     );
 
     series.slices.template.setAll({
       cornerRadius: 8,
       strokeWidth: 2,
-      stroke: am5.color(0x0f172a),
+      stroke: am5.Color.fromString(borderStrong),
     });
 
-    series.labels.template.setAll({
-      fill: am5.color(0xe2e8f0),
-      fontSize: 12,
-    });
-
-    series.ticks.template.setAll({
-      stroke: am5.color(0x94a3b8),
-    });
+    series.set(
+      "colors",
+      am5.ColorSet.new(root, {
+        colors: [
+          am5.Color.fromString(accent),
+          am5.Color.fromString(accentStrong),
+          am5.Color.fromString(accentSoft),
+          am5.Color.fromString(supportBrown),
+          am5.Color.fromString(textMain),
+        ],
+        reuse: true,
+      }),
+    );
 
     series.data.setAll(data);
 
@@ -562,23 +664,23 @@ function EducationChart({ data }) {
       }),
     );
 
-    legend.labels.template.setAll({
-      fill: am5.color(0xcbd5e1),
-      fontSize: 13,
-    });
-
-    legend.valueLabels.template.setAll({
-      fill: am5.color(0x94a3b8),
-      fontSize: 12,
-    });
-
+    applyChartTextTheme({ root, theme, series, legend, chartTitle });
     legend.data.setAll(series.dataItems);
     series.appear(1000, 100);
 
+    const resizeObserver = new ResizeObserver(() => {
+      root.resize();
+    });
+
+    if (chartRef.current) {
+      resizeObserver.observe(chartRef.current);
+    }
+
     return () => {
+      resizeObserver.disconnect();
       root.dispose();
     };
-  }, [data]);
+  }, [data, theme, title]);
 
   return <div ref={chartRef} className="education-chart" />;
 }
@@ -705,7 +807,13 @@ function App() {
             handleNavClick("home");
           }}
         >
-          <span className="brand-mark">CV</span>
+          <span className="brand-mark">
+            <img
+              className="brand-logo"
+              src="/legacy-assets/images/favicon.png"
+              alt="CV Logo"
+            />
+          </span>
           <span>
             <strong>CVaura</strong>
             <small>Pushparaj Murugesan</small>
@@ -742,7 +850,7 @@ function App() {
       <main>
         <section id="home" className="hero-section section-block">
           <div className="hero-copy">
-            <p className="eyebrow">Full-stack developer portfolio</p>
+            <p className="eyebrow">Full-stack developer</p>
             <h1>
               Modern engineering, calm execution, and recruiter-ready clarity.
             </h1>
@@ -926,8 +1034,11 @@ function App() {
                   </div>
                   <img src={item.badge} alt={`${item.title} score badge`} />
                 </div>
-                <p className="chart-title">{item.chartTitle}</p>
-                <EducationChart data={item.data} />
+                <EducationChart
+                  data={item.data}
+                  theme={theme}
+                  title={item.chartTitle}
+                />
               </article>
             ))}
           </div>
