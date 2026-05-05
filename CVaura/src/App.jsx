@@ -316,6 +316,11 @@ const DEFAULT_EMOJI_PRESETS = [
   },
 ];
 
+const PROFILE_COVER_IMAGES = {
+  light: "/legacy-assets/images/light_cover_profile.png",
+  dark: "/legacy-assets/images/dark_cover_profile.png",
+};
+
 function parseGvizJson(text) {
   return JSON.parse(text.substring(47).slice(0, -2));
 }
@@ -536,6 +541,10 @@ function getContrastColor(theme, tone = "main") {
         };
 
   return palette[tone] ?? palette.main;
+}
+
+function updateProfileImage(theme) {
+  return PROFILE_COVER_IMAGES[theme] ?? PROFILE_COVER_IMAGES.dark;
 }
 
 const CHART_BASE_COLORS = {
@@ -774,9 +783,17 @@ function App() {
   const [mailState, setMailState] = useState({ status: "idle", message: "" });
   const sectionIds = useMemo(() => NAV_ITEMS.map((item) => item.id), []);
   const { activeSection, scrollProgress } = useScrollSpy(sectionIds);
+  const profileCoverImage = updateProfileImage(theme);
 
   useEffect(() => {
     emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+  }, []);
+
+  useEffect(() => {
+    Object.values(PROFILE_COVER_IMAGES).forEach((src) => {
+      const image = new Image();
+      image.src = src;
+    });
   }, []);
 
   const contactCards = useMemo(
@@ -970,7 +987,7 @@ function App() {
             <div className="hero-orb hero-orb-two" />
             <div className="hero-image-frame">
               <img
-                src="/legacy-assets/images/light_cover_profile.png"
+                src={profileCoverImage}
                 alt="Pushparaj portfolio cover artwork"
               />
             </div>
