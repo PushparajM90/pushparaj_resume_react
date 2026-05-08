@@ -12,6 +12,8 @@ import * as am5percent from "@amcharts/amcharts5/percent";
 import * as am5plugins_exporting from "@amcharts/amcharts5/plugins/exporting";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import emailjs from "@emailjs/browser";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
 import "./App.css";
 
 const SHEET_ID = "1ZnIgvXhhld9W1F6TgqpRCLt1mULRRxlPb5hntLYxJzU";
@@ -417,6 +419,7 @@ function normalizeContacts(data) {
 }
 
 function normalizeEmojiPresets(data) {
+  console.log("Raw emoji data:", data);
   if (!data.id?.length) {
     return DEFAULT_EMOJI_PRESETS;
   }
@@ -424,7 +427,8 @@ function normalizeEmojiPresets(data) {
   return data.id.map((id, index) => ({
     id,
     symbol:
-      DEFAULT_EMOJI_PRESETS.find((item) => item.id === id)?.symbol ?? "??",
+      DEFAULT_EMOJI_PRESETS.find((item) => item.id === id)?.iconify_class ??
+      "??",
     text: data.text?.[index] ?? "",
   }));
 }
@@ -500,52 +504,185 @@ function useTheme() {
   return [theme, setTheme];
 }
 
-function useScrollSpy(sectionIds) {
-  const [activeSection, setActiveSection] = useState("home");
+function useScrollProgress() {
   const [scrollProgress, setScrollProgress] = useState(0);
+  const animationFrameRef = useRef(null);
 
-  const onScroll = useEffectEvent(() => {
-    const maxScroll =
-      document.documentElement.scrollHeight -
-      document.documentElement.clientHeight;
-    const currentScroll = window.scrollY;
-    setScrollProgress(maxScroll > 0 ? (currentScroll / maxScroll) * 100 : 0);
+  const updateProgress = useEffectEvent(() => {
+    if (animationFrameRef.current) {
+      return;
+    }
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      animationFrameRef.current = null;
+
+      const maxScroll =
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight;
+      const currentScroll = window.scrollY;
+
+      setScrollProgress(maxScroll > 0 ? (currentScroll / maxScroll) * 100 : 0);
+    });
   });
 
   useEffect(() => {
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [onScroll]);
+    updateProgress();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+    window.addEventListener("resize", updateProgress);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+    return () => {
+      window.removeEventListener("scroll", updateProgress);
+      window.removeEventListener("resize", updateProgress);
 
-        if (visible[0]) {
-          setActiveSection(visible[0].target.id);
-        }
-      },
-      {
-        rootMargin: "-30% 0px -50% 0px",
-        threshold: [0.25, 0.5, 0.75],
-      },
-    );
-
-    sectionIds.forEach((id) => {
-      const element = document.getElementById(id);
-      if (element) {
-        observer.observe(element);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
+    };
+  }, []);
+
+  return scrollProgress;
+}
+
+function useActiveSection() {
+  const [activeSection, setActiveSection] = useState("home");
+  const sectionsRef = useRef([]);
+  const observedSectionSignatureRef = useRef("");
+  const mutationFrameRef = useRef(null);
+  const scrollFrameRef = useRef(null);
+
+  const syncActiveSection = useEffectEvent(() => {
+    const sections = sectionsRef.current;
+
+    if (!sections.length) {
+      setActiveSection("home");
+      return;
+    }
+
+    const activationOffset = Math.max(130, window.innerHeight * 0.35);
+    const currentSection = sections.find((section) => {
+      const rect = section.getBoundingClientRect();
+      return rect.top <= activationOffset && rect.bottom > activationOffset;
     });
 
-    return () => observer.disconnect();
-  }, [sectionIds]);
+    if (currentSection) {
+      setActiveSection(currentSection.id);
+      return;
+    }
 
-  return { activeSection, scrollProgress };
+    const passedSections = sections.filter(
+      (section) => section.getBoundingClientRect().top <= activationOffset,
+    );
+
+    if (passedSections.length) {
+      setActiveSection(passedSections[passedSections.length - 1].id);
+      return;
+    }
+
+    setActiveSection(sections[0].id);
+  });
+
+  useEffect(() => {
+    const refreshSections = () => {
+      const sections = Array.from(document.querySelectorAll("section[id]"));
+      const sectionSignature = sections.map((section) => section.id).join("|");
+
+      if (sectionSignature === observedSectionSignatureRef.current) {
+        syncActiveSection();
+        return;
+      }
+
+      observedSectionSignatureRef.current = sectionSignature;
+      sectionsRef.current = sections;
+      syncActiveSection();
+    };
+
+    const scheduleRefreshSections = () => {
+      if (mutationFrameRef.current) {
+        return;
+      }
+
+      mutationFrameRef.current = requestAnimationFrame(() => {
+        mutationFrameRef.current = null;
+        refreshSections();
+      });
+    };
+
+    const scheduleSyncActiveSection = () => {
+      if (scrollFrameRef.current) {
+        return;
+      }
+
+      scrollFrameRef.current = requestAnimationFrame(() => {
+        scrollFrameRef.current = null;
+        syncActiveSection();
+      });
+    };
+
+    const mutationObserver = new MutationObserver(scheduleRefreshSections);
+
+    refreshSections();
+    window.addEventListener("scroll", scheduleSyncActiveSection, {
+      passive: true,
+    });
+    window.addEventListener("resize", scheduleSyncActiveSection);
+    mutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["id"],
+    });
+
+    return () => {
+      window.removeEventListener("scroll", scheduleSyncActiveSection);
+      window.removeEventListener("resize", scheduleSyncActiveSection);
+      mutationObserver.disconnect();
+
+      if (mutationFrameRef.current) {
+        cancelAnimationFrame(mutationFrameRef.current);
+      }
+
+      if (scrollFrameRef.current) {
+        cancelAnimationFrame(scrollFrameRef.current);
+      }
+    };
+  }, []);
+
+  return { activeSection, setActiveSection };
+}
+
+function useScrollSpy() {
+  const scrollProgress = useScrollProgress();
+  const { activeSection, setActiveSection } = useActiveSection();
+
+  return { activeSection, scrollProgress, setActiveSection };
+}
+
+function showCopyNotification({ theme, label, status }) {
+  const isSuccess = status === "success";
+
+  Swal.fire({
+    title: isSuccess ? "Copied" : "Copy unavailable",
+    text: isSuccess
+      ? `${label} has been copied to your clipboard.`
+      : `${label} could not be copied right now.`,
+    icon: isSuccess ? "success" : "error",
+    color: "var(--text-main)",
+    background: "var(--surface)",
+    iconColor: isSuccess ? "var(--accent)" : "var(--highlight)",
+    timer: 5000,
+    timerProgressBar: true,
+    showCloseButton: true,
+    showConfirmButton: false,
+    customClass: {
+      popup: "styled-popup themed-copy-popup",
+      title: "themed-copy-popup-title",
+      htmlContainer: "themed-copy-popup-text",
+      closeButton: "themed-copy-popup-close",
+      timerProgressBar: "themed-copy-popup-progress",
+    },
+    backdrop:
+      theme === "dark" ? "rgba(2, 10, 16, 0.62)" : "rgba(13, 27, 42, 0.22)",
+  });
 }
 
 function getContrastColor(theme, tone = "main") {
@@ -805,8 +942,7 @@ function App() {
     end_user_message: "",
   });
   const [mailState, setMailState] = useState({ status: "idle", message: "" });
-  const sectionIds = useMemo(() => NAV_ITEMS.map((item) => item.id), []);
-  const { activeSection, scrollProgress } = useScrollSpy(sectionIds);
+  const { activeSection, scrollProgress, setActiveSection } = useScrollSpy();
   const profileCoverImage = updateProfileImage(theme);
 
   useEffect(() => {
@@ -842,6 +978,7 @@ function App() {
   ];
 
   const handleNavClick = (id) => {
+    setActiveSection(id);
     document
       .getElementById(id)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -862,6 +999,7 @@ function App() {
         status: "error",
         message: `${label} is not available right now.`,
       });
+      showCopyNotification({ theme, label, status: "error" });
       return;
     }
 
@@ -871,12 +1009,14 @@ function App() {
         status: "success",
         message: `${label} copied to clipboard.`,
       });
+      showCopyNotification({ theme, label, status: "success" });
     } catch (error) {
       console.error("Copy failed", error);
       setMailState({
         status: "error",
         message: `Unable to copy ${label.toLowerCase()}.`,
       });
+      showCopyNotification({ theme, label, status: "error" });
     }
   };
 
@@ -943,10 +1083,14 @@ function App() {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
+              id={`${item.id}_btn_li`}
               type="button"
               className={
-                activeSection === item.id ? "nav-pill active" : "nav-pill"
+                activeSection === item.id
+                  ? "nav-pill active highlight_li_true"
+                  : "nav-pill"
               }
+              aria-current={activeSection === item.id ? "page" : undefined}
               onClick={() => handleNavClick(item.id)}
             >
               {item.label}
@@ -1230,18 +1374,6 @@ function App() {
               >
                 {mailState.status === "loading" ? "Sending..." : "Send Message"}
               </button>
-
-              {mailState.message ? (
-                <p
-                  className={
-                    mailState.status === "error"
-                      ? "form-status error"
-                      : "form-status success"
-                  }
-                >
-                  {mailState.message}
-                </p>
-              ) : null}
             </form>
 
             <div className="contact-cards">
