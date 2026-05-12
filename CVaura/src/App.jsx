@@ -93,7 +93,7 @@ const DEFAULT_PROJECTS = {
   ],
 };
 
-const SKILL_GROUPS = [
+const DEFAULT_SKILL_GROUPS = [
   {
     title: "Back-End",
     items: [
@@ -716,6 +716,29 @@ async function fetchExperience() {
   return normalizeExperience(experienceData);
 }
 
+function normalizeSkills(data) {
+  return Object.keys(data)
+    .map((columnName) => {
+      const title = columnName.trim();
+      const items = (data[columnName] ?? [])
+        .map((item) => String(item ?? "").trim())
+        .filter(Boolean);
+
+      return {
+        title,
+        items,
+      };
+    })
+    .filter((group) => group.title && group.items.length);
+}
+
+async function fetchSkills() {
+  const skillsData = await fetchSheetColumns("skills");
+  const normalizedSkills = normalizeSkills(skillsData);
+
+  return normalizedSkills.length ? normalizedSkills : DEFAULT_SKILL_GROUPS;
+}
+
 function usePortfolioData() {
   const [profileContent, setProfileContent] = useState(DEFAULT_PROFILE_CONTENT);
   const [contacts, setContacts] = useState(DEFAULT_CONTACTS);
@@ -728,6 +751,9 @@ function usePortfolioData() {
   const [projectsData, setProjectsData] = useState(DEFAULT_PROJECTS);
   const [isProjectsLoading, setIsProjectsLoading] = useState(true);
   const [projectsError, setProjectsError] = useState("");
+  const [skillsData, setSkillsData] = useState(DEFAULT_SKILL_GROUPS);
+  const [isSkillsLoading, setIsSkillsLoading] = useState(true);
+  const [skillsError, setSkillsError] = useState("");
   const [keyHighlights, setKeyHighlights] = useState([]);
   const [isKeyHighlightsLoading, setIsKeyHighlightsLoading] = useState(true);
   const [keyHighlightsError, setKeyHighlightsError] = useState("");
@@ -744,6 +770,7 @@ function usePortfolioData() {
           keyHighlightsData,
           experienceData,
           projectsApiData,
+          skillsApiData,
         ] = await Promise.all([
           fetchSheetColumns("profile"),
           fetchSheetColumns("emoji"),
@@ -751,6 +778,7 @@ function usePortfolioData() {
           fetchKeyHighlights(),
           fetchExperience(),
           fetchProjects(),
+          fetchSkills(),
         ]);
 
         if (ignore) {
@@ -768,10 +796,13 @@ function usePortfolioData() {
           setKeyHighlights(keyHighlightsData);
           setExperience(experienceData);
           setProjectsData(projectsApiData);
+          setSkillsData(skillsApiData);
           setExperienceError("");
           setIsExperienceLoading(false);
           setProjectsError("");
           setIsProjectsLoading(false);
+          setSkillsError("");
+          setIsSkillsLoading(false);
           setKeyHighlightsError("");
           setIsKeyHighlightsLoading(false);
         });
@@ -789,6 +820,9 @@ function usePortfolioData() {
           setProjectsData(DEFAULT_PROJECTS);
           setProjectsError("Unable to load projects right now.");
           setIsProjectsLoading(false);
+          setSkillsData(DEFAULT_SKILL_GROUPS);
+          setSkillsError("Unable to load skills right now.");
+          setIsSkillsLoading(false);
           setKeyHighlights([]);
           setKeyHighlightsError("Unable to load highlights right now.");
           setIsKeyHighlightsLoading(false);
@@ -815,6 +849,9 @@ function usePortfolioData() {
     projectsData,
     isProjectsLoading,
     projectsError,
+    skillsData,
+    isSkillsLoading,
+    skillsError,
     keyHighlights,
     isKeyHighlightsLoading,
     keyHighlightsError,
@@ -1323,12 +1360,16 @@ function App() {
     projectsData,
     isProjectsLoading,
     projectsError,
+    skillsData,
+    isSkillsLoading,
+    skillsError,
     keyHighlights,
     isKeyHighlightsLoading,
     keyHighlightsError,
   } = usePortfolioData();
   const [projectsModalOpen, setProjectsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [activeEducationIndex, setActiveEducationIndex] = useState(null);
 
   const openProjectModal = (project) => {
     setSelectedProject(project);
@@ -1339,6 +1380,49 @@ function App() {
     setProjectsModalOpen(false);
     setSelectedProject(null);
   };
+
+  const handleEducationPointerMove = (event) => {
+    if (event.pointerType === "touch") {
+      return;
+    }
+
+    const card = event.target.closest("[data-education-card-index]");
+
+    if (!card || !event.currentTarget.contains(card)) {
+      return;
+    }
+
+    const nextIndex = Number(card.dataset.educationCardIndex);
+    setActiveEducationIndex((currentIndex) =>
+      currentIndex === nextIndex ? currentIndex : nextIndex,
+    );
+  };
+
+  const handleEducationPointerLeave = () => {
+    setActiveEducationIndex(null);
+  };
+
+  useEffect(() => {
+    if (!projectsModalOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        closeProjectModal();
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [projectsModalOpen]);
   const [form, setForm] = useState({
     recipient_from_name: "",
     recipient_from_email: "",
@@ -1394,12 +1478,11 @@ function App() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const handleResumeDownload = async (event) => {
-    event.preventDefault();
-
+  const handleResumeDownload = (event) => {
     const resumePdfUrl = resolveGoogleDocsPdfUrl(resumeLink);
 
     if (!resumePdfUrl) {
+      event.preventDefault();
       showMailNotification({
         status: "error",
         title: "Resume not available",
@@ -1408,48 +1491,13 @@ function App() {
       return;
     }
 
-    try {
-      const response = await fetch(resumePdfUrl, {
-        mode: "cors",
-        credentials: "omit",
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Resume download failed with status ${response.status}`,
-        );
-      }
-
-      const resumeBlob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(resumeBlob);
-      const downloadLink = document.createElement("a");
-
-      downloadLink.href = downloadUrl;
-      downloadLink.download = RESUME_DOWNLOAD_FILENAME;
-      downloadLink.rel = "noopener noreferrer";
-      downloadLink.style.display = "none";
-
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      downloadLink.remove();
-      window.setTimeout(() => {
-        window.URL.revokeObjectURL(downloadUrl);
-      }, 1000);
-
+    window.setTimeout(() => {
       showMailNotification({
         status: "success",
         title: "Resume downloaded",
         message: `${RESUME_DOWNLOAD_FILENAME} has been downloaded successfully.`,
       });
-    } catch (error) {
-      console.error("Resume download failed", error);
-      showMailNotification({
-        status: "error",
-        title: "Download failed",
-        message: "Could not download resume. Opening in new tab instead.",
-      });
-      window.open(resumePdfUrl, "_blank", "noopener,noreferrer");
-    }
+    }, 600);
   };
 
   const handleInputChange = (event) => {
@@ -1598,6 +1646,7 @@ function App() {
               <a
                 className="primary-button"
                 href={resolveGoogleDocsPdfUrl(resumeLink) || "#home"}
+                download={RESUME_DOWNLOAD_FILENAME}
                 onClick={handleResumeDownload}
                 aria-label="Download resume as a PDF"
               >
@@ -1756,18 +1805,24 @@ function App() {
                 className="project-card glass-card"
               >
                 <span className="project-index">0{index + 1}</span>
-                <p>{proj.project}</p>
+                <h3 className="project-title">{proj.project}</h3>
+                <p className="project-summary">
+                  {proj.description?.length
+                    ? `${proj.description.length} project detail${
+                        proj.description.length > 1 ? "s" : ""
+                      } available`
+                    : "Project details will be updated soon."}
+                </p>
                 <div className="project-actions">
                   <button
                     type="button"
-                    className="primary-button"
+                    className="project-view-button"
                     onClick={() => openProjectModal(proj)}
-                    style={{
-                      background: "var(--accent)",
-                      color: "var(--text-on-accent, var(--text-main))",
-                    }}
                   >
-                    View Details
+                    <span>View Details</span>
+                    <span className="project-view-icon" aria-hidden="true">
+                      →
+                    </span>
                   </button>
                 </div>
               </article>
@@ -1775,17 +1830,33 @@ function App() {
           </div>
 
           {projectsModalOpen && selectedProject ? (
-            <div className="modal-overlay" role="dialog" aria-modal="true">
-              <div className="glass-card project-modal">
+            <div
+              className="modal-overlay"
+              role="presentation"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                  closeProjectModal();
+                }
+              }}
+            >
+              <div
+                className="glass-card project-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="project-modal-title"
+              >
                 <div className="modal-header">
-                  <h3>{selectedProject.project}</h3>
+                  <div>
+                    <span className="modal-eyebrow">Project Details</span>
+                    <h3 id="project-modal-title">{selectedProject.project}</h3>
+                  </div>
                   <button
                     type="button"
-                    className="secondary-button"
+                    className="project-modal-close"
                     onClick={closeProjectModal}
                     aria-label="Close project details"
                   >
-                    Close
+                    &times;
                   </button>
                 </div>
                 <div className="modal-body">
@@ -1813,20 +1884,50 @@ function App() {
               scanning
             </h2>
           </div>
+          {isSkillsLoading ? (
+            <article className="glass-card metric-card-message" role="status">
+              <span>Loading skills...</span>
+            </article>
+          ) : skillsError ? (
+            <article className="glass-card metric-card-message" role="status">
+              <span>{skillsError}</span>
+            </article>
+          ) : null}
           <div className="skills-layout">
             <div className="skills-groups">
-              {SKILL_GROUPS.map((group) => (
-                <article key={group.title} className="glass-card skill-group">
-                  <h3>{group.title}</h3>
-                  <div className="chip-wrap">
-                    {group.items.map((item) => (
-                      <span key={item} className="skill-chip">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
+              {skillsData.length ? (
+                skillsData.map((group, groupIndex) => (
+                  <article
+                    key={`${group.title}-${groupIndex}`}
+                    className="glass-card skill-group"
+                    style={{ "--skill-delay": `${groupIndex * 70}ms` }}
+                  >
+                    <h3>{group.title}</h3>
+                    <div className="chip-wrap">
+                      {group.items.map((item, itemIndex) => (
+                        <span
+                          key={`${group.title}-${item}-${itemIndex}`}
+                          className="skill-chip"
+                          style={{
+                            "--chip-delay": `${
+                              groupIndex * 70 + itemIndex * 35
+                            }ms`,
+                          }}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                  </article>
+                ))
+              ) : (
+                <article
+                  className="glass-card metric-card-message"
+                  role="status"
+                >
+                  <span>No skills found.</span>
                 </article>
-              ))}
+              )}
             </div>
 
             <div className="logo-grid">
@@ -1851,9 +1952,21 @@ function App() {
             <p className="eyebrow">Education</p>
             <h2>Academic Journey</h2>
           </div>
-          <div className="education-grid">
-            {EDUCATION.map((item) => (
-              <article key={item.title} className="glass-card education-card">
+          <div
+            className={`education-grid${
+              activeEducationIndex !== null ? " has-active-card" : ""
+            }`}
+            onPointerMove={handleEducationPointerMove}
+            onPointerLeave={handleEducationPointerLeave}
+          >
+            {EDUCATION.map((item, index) => (
+              <article
+                key={item.title}
+                className={`glass-card education-card${
+                  activeEducationIndex === index ? " is-active" : ""
+                }`}
+                data-education-card-index={index}
+              >
                 <div className="education-header">
                   <div>
                     <span className="education-period">{item.period}</span>

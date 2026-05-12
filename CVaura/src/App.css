@@ -553,19 +553,309 @@
 .project-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: 20px;
 }
 
 .project-card {
-  min-height: 220px;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border-strong));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--surface-glass) 92%, transparent),
+      color-mix(in srgb, var(--surface) 96%, transparent)
+    ),
+    var(--surface-glass);
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    background 220ms ease;
+}
+
+.project-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+  opacity: 0.9;
+  z-index: -1;
+}
+
+.project-card::after {
+  content: "";
+  position: absolute;
+  inset: auto -70px -80px auto;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent) 28%, transparent),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.project-card:hover {
+  transform: translateY(-6px);
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-strong));
+  box-shadow: 0 24px 56px color-mix(in srgb, var(--accent) 18%, #000);
+}
+
+.project-card:hover::after {
+  opacity: 0.95;
+  transform: scale(1.08);
 }
 
 .project-index {
-  display: inline-flex;
-  margin-bottom: 18px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-soft);
   font-size: 0.9rem;
-  letter-spacing: 0.16em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.project-title {
+  margin: 0;
+  font-size: 1.12rem;
+  line-height: 1.48;
+  color: var(--text-strong);
+}
+
+.project-summary {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.project-actions {
+  margin-top: auto;
+}
+
+.project-view-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, transparent);
+  border-radius: 16px;
+  padding: 0.78rem 0.9rem 0.78rem 1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 92%, var(--surface)),
+    color-mix(in srgb, var(--accent-strong) 90%, var(--surface))
+  );
+  color: var(--button-text);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 22%, transparent);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease,
+    filter 180ms ease;
+}
+
+.project-view-button:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent-strong) 70%, transparent);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--accent) 32%, transparent);
+  filter: saturate(1.08);
+}
+
+.project-view-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--button-text) 18%, transparent);
+  color: inherit;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+
+.project-view-button:hover .project-view-icon {
+  transform: translateX(3px);
+}
+
+.project-view-button:focus-visible,
+.project-modal-close:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 3px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
+  backdrop-filter: blur(4px) saturate(1.08);
+  z-index: 120;
+  animation: modalOverlayIn 180ms ease both;
+}
+
+.project-modal {
+  width: min(780px, calc(100vw - 34px));
+  max-height: min(84vh, 720px);
+  overflow: auto;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-strong));
+  border-radius: 28px;
+  background:
+    radial-gradient(
+      circle at 95% 0,
+      color-mix(in srgb, var(--highlight) 26%, transparent),
+      transparent 42%
+    ),
+    radial-gradient(
+      circle at 0 100%,
+      color-mix(in srgb, var(--accent) 20%, transparent),
+      transparent 38%
+    ),
+    var(--surface);
+  box-shadow:
+    0 30px 80px color-mix(in srgb, #000 34%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--highlight) 10%, transparent) inset;
+  animation: projectModalIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: clamp(1.24rem, 2.3vw, 1.78rem);
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+
+.modal-eyebrow {
+  display: inline-flex;
+  margin-bottom: 10px;
+  color: var(--accent-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.project-modal-close {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border-strong));
+  border-radius: 999px;
+  padding: 0;
+  background: color-mix(in srgb, var(--surface-glass) 86%, transparent);
+  color: var(--text-strong);
+  font-size: 1.55rem;
+  line-height: 1;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.project-modal-close:hover {
+  transform: rotate(90deg) scale(1.04);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-glass));
+  box-shadow: 0 12px 24px color-mix(in srgb, #000 18%, transparent);
+}
+
+.modal-body ul {
+  margin: 0;
+  padding: 0;
+  color: var(--text-main);
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+
+.modal-body li {
+  position: relative;
+  margin: 0;
+  padding: 14px 16px 14px 48px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border-soft));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-glass) 72%, transparent);
+  line-height: 1.7;
+}
+
+.modal-body li::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 21px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.modal-body p {
+  margin: 0;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--surface-glass) 70%, transparent);
+  color: var(--text-muted);
+}
+
+@keyframes modalOverlayIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes projectModalIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .skills-layout {
@@ -577,6 +867,58 @@
 .skills-groups {
   display: grid;
   gap: 16px;
+}
+
+.skill-group {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border-strong));
+  animation: skillCardIn 520ms ease both;
+  animation-delay: var(--skill-delay, 0ms);
+}
+
+.skill-group::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  opacity: 0.9;
+}
+
+.skill-group::after {
+  content: "";
+  position: absolute;
+  inset: -45% -20% auto auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--highlight) 20%, transparent),
+    transparent 68%
+  );
+  pointer-events: none;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease;
+}
+
+.skill-group:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-strong));
+  box-shadow: 0 22px 46px color-mix(in srgb, var(--accent) 14%, #000);
+}
+
+.skill-group:hover::after {
+  opacity: 0.95;
+  transform: translate(-10px, 10px) scale(1.08);
+}
+
+.skill-group h3,
+.skill-group .chip-wrap {
+  position: relative;
+  z-index: 1;
 }
 
 .chip-wrap {
@@ -592,6 +934,46 @@
   background: color-mix(in srgb, var(--surface-glass) 84%, transparent);
   border: 1px solid var(--border-strong);
   color: var(--text-main);
+  animation: skillChipIn 420ms ease both;
+  animation-delay: var(--chip-delay, 0ms);
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.skill-chip:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border-strong));
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-glass));
+  color: var(--text-strong);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+@keyframes skillCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skillChipIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .logo-grid {
@@ -896,30 +1278,33 @@
 }
 
 @media (hover: hover) and (pointer: fine) and (min-width: 1121px) {
-  .education-grid:hover .education-card {
+  .education-grid.has-active-card .education-card {
     flex-grow: 1;
   }
 
-  .education-grid:hover .education-card:hover {
+  .education-grid.has-active-card .education-card.is-active {
     flex-grow: 6;
     transform: translateY(-4px);
   }
 
-  .education-grid:hover .education-chart {
+  .education-grid.has-active-card .education-chart {
     min-height: 0;
     max-height: 0;
     opacity: 0;
     transform: translateY(10px);
   }
 
-  .education-grid:hover .education-card:hover .education-chart {
+  .education-grid.has-active-card .education-card.is-active .education-chart {
     min-height: 360px;
     max-height: 420px;
     opacity: 1;
     transform: translateY(0);
   }
 
-  .education-grid:hover .education-card:not(:hover) .education-header img {
+  .education-grid.has-active-card
+    .education-card:not(.is-active)
+    .education-header
+    img {
     opacity: 0;
     transform: scale(0.86);
   }
@@ -1256,5 +1641,23 @@
   .secondary-button,
   .theme-toggle {
     width: 100%;
+  }
+
+  .modal-overlay {
+    padding: 14px;
+  }
+
+  .modal-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding-right: 48px;
+  }
+
+  .project-modal-close {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    width: 42px;
+    height: 42px;
   }
 }
