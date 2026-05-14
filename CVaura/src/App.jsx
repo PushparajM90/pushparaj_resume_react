@@ -1423,7 +1423,11 @@ function App() {
   };
 
   const handleEducationPointerMove = (event) => {
-    if (event.pointerType === "touch") {
+    if (
+      event.pointerType === "touch" ||
+      window.matchMedia("(max-width: 1120px)").matches
+    ) {
+      setActiveEducationIndex(null);
       return;
     }
 
@@ -1471,6 +1475,10 @@ function App() {
   });
   const [mailState, setMailState] = useState({ status: "idle", message: "" });
   const { activeSection, scrollProgress, setActiveSection } = useScrollSpy();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(true);
+  const mobileMenuOpenRef = useRef(true);
+  const lastScrollYRef = useRef(0);
+  const ignoreMobileScrollUntilRef = useRef(0);
   const profileCoverImage = updateProfileImage(theme);
 
   useEffect(() => {
@@ -1500,6 +1508,57 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [mailState.status]);
 
+  useEffect(() => {
+    mobileMenuOpenRef.current = mobileMenuOpen;
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 760px)");
+
+    lastScrollYRef.current = window.scrollY;
+
+    const collapseMenuOnMobileScroll = () => {
+      const currentScrollY = window.scrollY;
+      const hasScrolled = Math.abs(currentScrollY - lastScrollYRef.current) > 4;
+      const shouldIgnoreScroll =
+        window.performance.now() < ignoreMobileScrollUntilRef.current;
+
+      lastScrollYRef.current = currentScrollY;
+
+      if (
+        !mobileQuery.matches ||
+        !mobileMenuOpenRef.current ||
+        !hasScrolled ||
+        shouldIgnoreScroll
+      ) {
+        return;
+      }
+
+      mobileMenuOpenRef.current = false;
+      setMobileMenuOpen(false);
+    };
+
+    const handleViewportChange = () => {
+      lastScrollYRef.current = window.scrollY;
+
+      if (!mobileQuery.matches) {
+        mobileMenuOpenRef.current = true;
+        ignoreMobileScrollUntilRef.current = 0;
+        setMobileMenuOpen(true);
+      }
+    };
+
+    window.addEventListener("scroll", collapseMenuOnMobileScroll, {
+      passive: true,
+    });
+    mobileQuery.addEventListener("change", handleViewportChange);
+
+    return () => {
+      window.removeEventListener("scroll", collapseMenuOnMobileScroll);
+      mobileQuery.removeEventListener("change", handleViewportChange);
+    };
+  }, []);
+
   const contactCards = useMemo(
     () =>
       Object.keys(CONTACT_META).map((id) => ({
@@ -1514,9 +1573,29 @@ function App() {
 
   const handleNavClick = (id) => {
     setActiveSection(id);
+    mobileMenuOpenRef.current = false;
+    ignoreMobileScrollUntilRef.current = 0;
+    setMobileMenuOpen(false);
     document
       .getElementById(id)
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen((isOpen) => {
+      const nextIsOpen = !isOpen;
+
+      mobileMenuOpenRef.current = nextIsOpen;
+
+      if (nextIsOpen) {
+        lastScrollYRef.current = window.scrollY;
+        ignoreMobileScrollUntilRef.current = window.performance.now() + 320;
+      } else {
+        ignoreMobileScrollUntilRef.current = 0;
+      }
+
+      return nextIsOpen;
+    });
   };
 
   const handleResumeDownload = (event) => {
@@ -1616,7 +1695,11 @@ function App() {
         style={{ transform: `scaleX(${scrollProgress / 100})` }}
       />
 
-      <header className="site-header">
+      <header
+        className={`site-header ${
+          mobileMenuOpen ? "mobile-nav-expanded" : "mobile-nav-collapsed"
+        }`}
+      >
         <a
           className="brand"
           href="#home"
@@ -1638,7 +1721,22 @@ function App() {
           </span>
         </a>
 
-        <nav className="main-nav" aria-label="Primary">
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          onClick={handleMobileMenuToggle}
+          aria-controls="primary-navigation"
+          aria-expanded={mobileMenuOpen}
+          aria-label={
+            mobileMenuOpen
+              ? "Collapse navigation menu"
+              : "Expand navigation menu"
+          }
+        >
+          <span aria-hidden="true">{mobileMenuOpen ? "v" : ">"}</span>
+        </button>
+
+        <nav id="primary-navigation" className="main-nav" aria-label="Primary">
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
