@@ -1612,7 +1612,15 @@
   }
 
   .hero-visual {
-    min-height: 460px;
+    min-height: clamp(500px, 62vw, 640px);
+  }
+
+  .hero-image-frame {
+    inset: 24px clamp(28px, 8vw, 88px) 112px;
+  }
+
+  .hero-image-frame img {
+    object-position: center top;
   }
 
   .logo-grid {
@@ -1803,6 +1811,15 @@
   .metrics-grid,
   .logo-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hero-visual {
+    min-height: clamp(560px, 135vw, 680px);
+  }
+
+  .hero-image-frame {
+    inset: 16px clamp(10px, 4vw, 28px) 118px;
+    border-radius: 24px;
   }
 
   .education-header,
